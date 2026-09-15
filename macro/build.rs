@@ -1,1 +1,1 @@
-include!("../tools/cargo/build.rs");
+fn main() {}
