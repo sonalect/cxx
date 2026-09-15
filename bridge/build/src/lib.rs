@@ -384,15 +384,20 @@ fn make_include_dir(prj: &Project) -> Result<PathBuf> {
     let include_dir = prj.out_dir.join("cxxbridge").join("include");
     let cxx_h = include_dir.join("rust").join("cxx.h");
     let ref shared_cxx_h = prj.shared_dir.join("rust").join("cxx.h");
-    if let Some(original) = env::var_os("DEP_CXXBRIDGE1_HEADER") {
+    // Bazel sandboxes hide the cxx crate's HEADER path, so treat a missing
+    // DEP_CXXBRIDGE1_HEADER target like the env var being unset. On Windows
+    // skip a visible path too: MSVC does not follow the symlink cxx-build
+    // would create. shared_dir is not on the include path; ignore EROFS
+    // when the sandbox remounts the scratch crate read-only.
+    let header_from_dep = env::var_os("DEP_CXXBRIDGE1_HEADER")
+        .filter(|p| Path::new(p).is_file())
+        .filter(|_| !cfg!(windows));
+    if let Some(original) = header_from_dep {
         out::absolute_symlink_file(&original, cxx_h)?;
         let _ = out::absolute_symlink_file(&original, shared_cxx_h);
-    } else if out::write(shared_cxx_h, bridge::include::HEADER.as_bytes()).is_ok() {
-        out::relative_symlink_file(shared_cxx_h, cxx_h)?;
     } else {
-        // The shared directory is only a debugging convenience and may not be
-        // writable, for example when the build script runs in a sandbox.
         out::write(cxx_h, bridge::include::HEADER.as_bytes())?;
+        let _ = out::write(shared_cxx_h, bridge::include::HEADER.as_bytes());
     }
     Ok(include_dir)
 }

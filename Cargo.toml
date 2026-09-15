@@ -78,8 +78,7 @@ cc_library(
 )
 """
 extra_aliased_targets = { cxx_cc = "cxx_cc" }
-gen_build_script = false
-link_deps = [":cxx_cc"]
+gen_build_script = true
 
 [patch.crates-io]
 cxx = { path = "." }
